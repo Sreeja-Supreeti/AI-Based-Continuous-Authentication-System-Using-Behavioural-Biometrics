@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>BehaviourAuth v2</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#02080f;--surface:#071220;--card:#0a1928;--border:#0f2336;--dim:#132a40;
+  --text:#4d7a9e;--mid:#7fafc8;--bright:#c4dff0;
+  --cyan:#00e5ff;--green:#00ff9d;--yellow:#ffd700;--teal:#22d3ee;
+  --red:#ff4f7b;--orange:#fb923c;--purple:#c084fc;
+}
+html,body{height:100%;background:var(--bg);color:var(--mid);font-family:'IBM Plex Mono',monospace;font-size:13px}
+::selection{background:#00e5ff22;color:var(--cyan)}
+::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px}
+
+.header{position:sticky;top:0;z-index:90;padding:10px 22px;background:rgba(2,8,15,.97);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:16px}
+.main{padding:16px 20px;max-width:1440px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+.ct{font-size:7.5px;letter-spacing:.2em;color:#193550;margin-bottom:10px;text-transform:uppercase;font-weight:500}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.nav-btn{padding:5px 16px;border-radius:5px;border:none;cursor:pointer;font-family:inherit;font-size:8.5px;letter-spacing:.14em;background:transparent;color:var(--text);transition:all .15s}
+.nav-btn.on{background:var(--dim);color:var(--bright);font-weight:600}
+.badge{border-radius:4px;padding:2px 7px;font-size:8px;font-weight:700;border:1px solid;display:inline-block;white-space:nowrap}
+.bar-t{background:var(--dim);border-radius:3px;height:4px;overflow:hidden}
+.bar-f{height:100%;border-radius:3px;transition:width .6s ease}
+.srow{padding:7px 10px;border-radius:7px;border-left:3px solid;cursor:pointer;transition:background .12s;display:flex;align-items:center;gap:8px}
+.srow:hover,.srow.on{background:var(--surface)}
+.feat-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.feat-label{font-size:8px;color:var(--text);min-width:90px}
+.feat-val{font-size:10px;font-weight:600;min-width:55px;text-align:right}
+.feat-bar{flex:1;height:5px;background:var(--dim);border-radius:3px;overflow:hidden}
+.feat-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.dial-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+.dial-svg{transform:rotate(-90deg)}
+
+/* ── Loading ── */
+#overlay{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.spinner{width:34px;height:34px;border:2.5px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:spin 1s linear infinite}
+#log-box{max-width:560px;width:100%;max-height:190px;overflow-y:auto;padding:11px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:9px;color:var(--text)}
+#log-box p{margin-bottom:3px}
+
+/* ── Toast (swipeable) ── */
+#toast-area{position:fixed;top:56px;right:14px;z-index:300;display:flex;flex-direction:column;gap:7px;width:310px;pointer-events:none}
+.toast{padding:10px 13px;border-radius:8px;border-left:3px solid;pointer-events:all;cursor:grab;user-select:none;will-change:transform,opacity;transition:box-shadow .15s}
+.toast:active{cursor:grabbing}
+
+/* ── Modal ── */
+.modal-bg{position:fixed;inset:0;background:#00000088;z-index:150;display:flex;align-items:center;justify-content:center}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-height:90vh;overflow-y:auto}
+.modal h2{font-size:14px;font-weight:600;color:var(--bright);margin-bottom:4px}
+.modal-sub{font-size:9px;color:var(--text);margin-bottom:18px}
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:8px;color:#193550;letter-spacing:.14em;margin-bottom:5px}
+.fld input{width:100%;background:var(--surface);border:1px solid var(--border);color:var(--bright);padding:7px 10px;border-radius:6px;font-family:inherit;font-size:11px;outline:none}
+.fld input:focus{border-color:var(--cyan)}
+.session-sample{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px}
+.session-sample .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.modal-actions{display:flex;gap:10px;margin-top:18px}
+.btn-primary{flex:1;padding:10px;border-radius:8px;border:1px solid var(--cyan);background:#00e5ff0a;color:var(--cyan);cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em}
+.btn-secondary{padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-family:inherit;font-size:11px}
+.btn-add{padding:4px 10px;border-radius:6px;border:1px solid #00e5ff33;background:#00e5ff09;color:var(--cyan);cursor:pointer;font-family:inherit;font-size:8px;font-weight:600}
+
+/* ── Table ── */
+table{width:100%;border-collapse:collapse}
+th{padding:6px 10px;border-bottom:1px solid var(--border);font-size:8px;font-weight:400;color:#193550;letter-spacing:.1em;text-align:left}
+td{padding:7px 10px;border-bottom:1px solid var(--surface);font-size:9px}
+tr:hover td{background:var(--surface)}
+tfoot td{border-top:1px solid var(--border);border-bottom:none}
+
+/* ── Forms ── */
+select,input[type=number]{background:var(--surface);border:1px solid var(--border);color:var(--bright);padding:7px 10px;border-radius:6px;font-family:inherit;font-size:11px;width:100%;outline:none}
+select:focus,input:focus{border-color:var(--cyan)}
+.run-btn{width:100%;padding:10px;border-radius:8px;border:1px solid var(--cyan);background:#00e5ff0a;color:var(--cyan);cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;transition:all .2s}
+.run-btn:hover{background:#00e5ff18}
+
+/* ── Animations ── */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes scan{0%{top:-3px}100%{top:100vh}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #ff4f7b44}50%{box-shadow:0 0 0 8px transparent}}
+@keyframes toastIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+.fade{animation:fadeUp .25s ease}
+.blink{animation:blink 2s infinite}
+
+/* ── Scanline ── */
+#scanline{position:fixed;left:0;width:100%;height:2px;pointer-events:none;z-index:1;background:linear-gradient(transparent,#00e5ff07,transparent);animation:scan 9s linear infinite}
+</style>
+</head>
+<body>
+<div id="scanline"></div>
+
+<!-- ═══════ LOADING ═══════ -->
+<div id="overlay">
+  <svg width="46" height="46" viewBox="0 0 40 40" fill="none">
+    <circle cx="20" cy="20" r="3" stroke="#00e5ff" stroke-width="1.5"/>
+    <path d="M16 20 a4 4 0 0 1 8 0"    stroke="#00e5ff" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M13 20 a7 7 0 0 1 14 0"   stroke="#00e5ff" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M10 20 a10 10 0 0 1 20 0" stroke="#00e5ff" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>
+  <div style="font-size:15px;font-weight:600;letter-spacing:.2em;color:var(--cyan)">BEHAVIOURAUTH <span style="color:#1e3a4a;font-weight:300;font-size:11px">v2</span></div>
+  <div id="ov-msg" style="font-size:9.5px;color:var(--text)">Initialising…</div>
+  <div class="spinner"></div>
+  <div id="log-box"></div>
+</div>
+
+<!-- ═══════ SWIPEABLE TOASTS ═══════ -->
+<div id="toast-area"></div>
+
+<!-- ═══════ ADD USER MODAL ═══════ -->
+<div id="user-modal" class="modal-bg" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h2>Add New User</h2>
+    <div class="modal-sub">Enter the user ID and at least 1 baseline session (genuine biometric values).</div>
+    <div class="fld">
+      <label>USER ID</label>
+      <input id="m-uid" placeholder="e.g. user_89" type="text"/>
+    </div>
+    <div id="m-samples">
+      <!-- Sample rows injected here -->
+    </div>
+    <button class="btn-add" onclick="addSampleRow()" style="margin-bottom:14px">+ Add session sample</button>
+    <div id="m-error" style="color:var(--red);font-size:9px;min-height:16px;margin-bottom:6px"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="submitNewUser()">CREATE USER</button>
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ HEADER ═══════ -->
+<header class="header" id="hdr" style="display:none">
+  <div style="display:flex;align-items:center;gap:10px">
+    <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="3" stroke="#00e5ff" stroke-width="1.5"/>
+      <path d="M16 20 a4 4 0 0 1 8 0"    stroke="#00e5ff" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M13 20 a7 7 0 0 1 14 0"   stroke="#00e5ff" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M10 20 a10 10 0 0 1 20 0" stroke="#00e5ff" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <span style="font-size:13px;font-weight:600;color:var(--bright);letter-spacing:.1em">BEHAVIOUR<span style="color:var(--cyan)">AUTH</span></span>
+      <div style="font-size:7px;color:#193550;letter-spacing:.16em">ADAPTIVE · ANTI-IMITATION · DEVICE-AWARE</div>
+    </div>
+  </div>
+
+  <nav style="display:flex;gap:2px">
+    <button class="nav-btn on" onclick="goTab('monitor')">MONITOR</button>
+    <button class="nav-btn"    onclick="goTab('simulate')">SIMULATE</button>
+    <button class="nav-btn"    onclick="goTab('compare')">COMPARE</button>
+    <button class="nav-btn"    onclick="goTab('predict')">PREDICT</button>
+  </nav>
+
+  <div style="display:flex;align-items:center;gap:12px">
+    <div id="flag-pill" style="display:none;align-items:center;gap:6px;font-size:9px;color:var(--red);background:#ff4f7b0a;border:1px solid #ff4f7b33;border-radius:20px;padding:3px 10px;animation:pulse 2s infinite">
+      <span class="blink" style="width:5px;height:5px;border-radius:50%;background:var(--red);display:inline-block"></span>
+      <span id="flag-n">0</span> FLAGGED
+    </div>
+    <div style="font-size:8.5px;color:var(--cyan);display:flex;align-items:center;gap:6px">
+      <span class="blink" style="width:5px;height:5px;border-radius:50%;background:var(--cyan);display:inline-block"></span>
+      <span id="hdr-n">—</span> USERS
+    </div>
+  </div>
+</header>
+
+<!-- ═══════ MAIN ═══════ -->
+<main class="main" id="main" style="display:none">
+
+  <!-- ─── MONITOR ─── -->
+  <div id="tab-monitor">
+    <div style="display:grid;grid-template-columns:252px 1fr;gap:16px">
+
+      <!-- Left: user list -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="ct" style="margin-bottom:0">USER REGISTRY</div>
+          <button class="btn-add" onclick="openModal()">+ Add User</button>
+        </div>
+        <div id="u-list" style="display:flex;flex-direction:column;gap:5px;max-height:calc(100vh - 138px);overflow-y:auto"></div>
+      </div>
+
+      <!-- Right panel -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div id="u-hdr" class="card" style="min-height:88px"></div>
+        <div style="display:grid;grid-template-columns:210px 1fr;gap:14px">
+          <div class="card">
+            <div class="ct">SESSION HISTORY</div>
+            <div id="s-list" style="display:flex;flex-direction:column;gap:4px;max-height:500px;overflow-y:auto"></div>
+          </div>
+          <div id="s-detail" style="display:flex;flex-direction:column;gap:12px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SIMULATE ─── -->
+  <div id="tab-simulate" style="display:none">
+    <div class="g2">
+      <div style="display:flex;flex-direction:column;gap:12px">
+
+        <div class="card">
+          <div class="ct">SIMULATION CONTROL</div>
+          <div style="margin-bottom:12px">
+            <div class="ct" style="margin-bottom:5px">SELECT USER</div>
+            <div id="sim-users" style="display:flex;flex-wrap:wrap;gap:4px"></div>
+          </div>
+          <div style="padding:11px;background:var(--surface);border-radius:7px;border:1px solid var(--border);font-size:9px;color:var(--text);line-height:2.2;margin-bottom:12px">
+            Replays a <span style="color:var(--mid)">realistic</span> session pattern:<br/>
+            · Most sessions are <span style="color:var(--green)">genuine</span> (natural variation)<br/>
+            · <span style="color:var(--red)">Impostor bursts</span> (1–3) appear randomly mid-stream<br/>
+            · After detection, <span style="color:var(--green)">genuine</span> sessions resume<br/>
+            · ~85% genuine, ~15% impostor — matches real-world attack rates
+          </div>
+          <div style="display:flex;gap:8px">
+            <button id="sim-btn" onclick="simToggle()" style="flex:1;padding:10px;border-radius:7px;border:1px solid #00e5ff44;background:#00e5ff0a;color:var(--cyan);cursor:pointer;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em">▶ START</button>
+            <button onclick="simReset()" style="padding:10px 14px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-family:inherit;font-size:11px">RESET</button>
+          </div>
+        </div>
+
+        <div id="sim-live" class="card" style="display:none"></div>
+        <div id="sim-stats" class="card" style="display:none"></div>
+      </div>
+
+      <div class="card">
+        <div class="ct">AUTHENTICATION LOG</div>
+        <div id="sim-log" style="display:flex;flex-direction:column;gap:4px;max-height:calc(100vh - 210px);overflow-y:auto">
+          <div style="text-align:center;color:var(--dim);padding:60px 0;font-size:11px">Press START to begin</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── COMPARE ─── -->
+  <div id="tab-compare" style="display:none">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card">
+        <div class="ct">GLOBAL MODEL ACCURACY</div>
+        <div id="cmp-models" class="g4"></div>
+      </div>
+      <div class="card">
+        <div class="ct">PER-USER BREAKDOWN — click any row to inspect in Monitor</div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead id="cmp-head"></thead>
+            <tbody id="cmp-body"></tbody>
+            <tfoot id="cmp-foot"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── PREDICT ─── -->
+  <div id="tab-predict" style="display:none">
+    <div class="g2">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="card">
+          <div class="ct">LIVE SESSION INPUT</div>
+          <p style="font-size:9px;color:var(--text);margin-bottom:14px;line-height:1.9">Enter raw biometric values — all 4 models score them in real time via the API. Results include threat score + 7 extended risk indicators.</p>
+          <div class="ct" style="display:block;margin-bottom:5px">USER</div>
+          <select id="p-user" style="margin-bottom:12px"></select>
+          <div class="ct" style="display:block;margin-bottom:5px">DWELL AVG (s)</div>
+          <input type="number" id="p-dwell" step="0.0001" placeholder="e.g. 0.092" style="margin-bottom:10px"/>
+          <div class="ct" style="display:block;margin-bottom:5px">FLIGHT AVG (s)</div>
+          <input type="number" id="p-flight" step="0.0001" placeholder="e.g. 0.34" style="margin-bottom:10px"/>
+          <div class="ct" style="display:block;margin-bottom:5px">TRAJ AVG (px)</div>
+          <input type="number" id="p-traj" step="1" placeholder="e.g. 520" style="margin-bottom:14px"/>
+          <button class="run-btn" onclick="doPredict()">RUN ALL MODELS</button>
+          <div style="margin-top:9px;font-size:8.5px;color:var(--text)">
+            💡 <a href="#" onclick="autoFill(event)" style="color:var(--cyan);text-decoration:none">Auto-fill genuine</a>
+            · <a href="#" onclick="autoFillImpostor(event)" style="color:var(--red);text-decoration:none">Simulate impostor</a>
+          </div>
+        </div>
+        <div id="p-ext" class="card" style="display:none"></div>
+      </div>
+      <div class="card" id="p-results" style="min-height:300px">
+        <div class="ct">PREDICTION RESULTS</div>
+        <div style="text-align:center;color:var(--dim);padding:60px 0;font-size:11px">Fill the form and click RUN ALL MODELS</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ══════════════════════════════════════════════════
+// Constants
+// ══════════════════════════════════════════════════
+const FLAG = {
+  safe:     {c:"#00ff9d",bg:"#00ff9d0d",bc:"#00ff9d30",lbl:"CLEAR",   ico:"✓"},
+  caution:  {c:"#ffd700",bg:"#ffd7000d",bc:"#ffd70030",lbl:"CAUTION", ico:"△"},
+  warning:  {c:"#fb923c",bg:"#fb923c0d",bc:"#fb923c30",lbl:"WARNING", ico:"⚠"},
+  critical: {c:"#ff4f7b",bg:"#ff4f7b0d",bc:"#ff4f7b30",lbl:"FLAGGED", ico:"✕"},
+};
+const MC   = {svm:"#00e5ff",xgb:"#00ff9d",mlp:"#ffd700",vote:"#22d3ee"};
+const ML   = {svm:"SVM",xgb:"XGB",mlp:"MLP",vote:"VOTE"};
+const MIDS = ["svm","xgb","mlp","vote"];
+const tc   = s => s>=70?"#ff4f7b":s>=45?"#fb923c":s>=20?"#ffd700":"#00ff9d";
+const tf   = s => s>=70?"critical":s>=45?"warning":s>=20?"caution":"safe";
+
+const S = {
+  users:[], sessions:{}, models:[],
+  uid:null, sidx:null,
+  simUid:null, simStep:0, simTimer:null, simLog:[], simSeq:[],
+};
+
+// ══════════════════════════════════════════════════
+// Boot
+// ══════════════════════════════════════════════════
+let poller;
+function boot(){
+  poller = setInterval(async()=>{
+    try{
+      const r = await fetch("/api/status").then(r=>r.json());
+      document.getElementById("ov-msg").textContent = r.message||r.status;
+      const lb=document.getElementById("log-box");
+      lb.innerHTML=(r.log||[]).map(l=>`<p>${esc(l)}</p>`).join("");
+      lb.scrollTop=lb.scrollHeight;
+      if(r.ready){ clearInterval(poller); await loadAll(); showApp(); connectSSE(); }
+      else if(r.status==="error"){ clearInterval(poller); document.querySelector(".spinner").style.display="none"; document.getElementById("ov-msg").style.color="var(--red)"; }
+    }catch(_){}
+  }, 1100);
+}
+
+function showApp(){
+  document.getElementById("overlay").style.display="none";
+  document.getElementById("hdr").style.display="";
+  document.getElementById("main").style.display="";
+}
+
+async function loadAll(){
+  const [users, models] = await Promise.all([
+    fetch("/api/users").then(r=>r.json()),
+    fetch("/api/models/summary").then(r=>r.json()),
+  ]);
+  S.users=users; S.models=models;
+  refreshHeader();
+  buildUserList();
+  buildSimUsers();
+  buildCompare();
+  buildPredictUsers();
+  if(users.length){ await selectUser(users[0].user_id); S.simUid=users[0].user_id; }
+}
+
+function refreshHeader(){
+  document.getElementById("hdr-n").textContent=S.users.length;
+  const flagged=S.users.filter(u=>["critical","warning"].includes(u.threat_level)).length;
+  const pill=document.getElementById("flag-pill");
+  if(flagged>0){ pill.style.display="flex"; document.getElementById("flag-n").textContent=flagged; }
+  else pill.style.display="none";
+}
+
+// ══════════════════════════════════════════════════
+// SSE + swipeable toasts
+// ══════════════════════════════════════════════════
+function connectSSE(){
+  const es=new EventSource("/api/stream");
+  es.onmessage=e=>{ try{ const a=JSON.parse(e.data); if(a.id) pushToast(a); }catch(_){} };
+  es.onerror=()=>setTimeout(connectSSE,5000);
+}
+
+function pushToast(a){
+  const f=FLAG[a.flag]||FLAG.warning;
+  const el=document.createElement("div");
+  el.className="toast";
+  el.style.cssText=`background:${f.bg};border-left-color:${f.c};border:1px solid ${f.bc};animation:toastIn .25s ease`;
+  el.innerHTML=`
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+      <div style="flex:1">
+        <div style="color:${f.c};font-weight:700;font-size:9.5px">${f.ico} ${f.lbl} — User ${a.uid}</div>
+        <div style="color:var(--text);font-size:8px;margin-top:3px;line-height:1.8">
+          Session #${a.session_id} · ${a.n_fails}/4 failed · Threat ${a.threat_score}
+          ${a.imitation_risk>0.5?`<br/><span style="color:var(--orange)">⚠ Imitation risk: ${(a.imitation_risk*100).toFixed(0)}%</span>`:""}
+        </div>
+        <div style="font-size:7.5px;color:#193550;margin-top:4px">↔ swipe right to dismiss</div>
+      </div>
+      <button onclick="dismissToast(this.closest('.toast'))" style="color:var(--dim);background:transparent;border:none;cursor:pointer;font-size:16px;line-height:1;flex-shrink:0">×</button>
+    </div>`;
+  document.getElementById("toast-area").appendChild(el);
+  makeSwipeable(el);
+  setTimeout(()=>{ if(el.isConnected) autoSlideToast(el); }, 6000);
+}
+
+function dismissToast(el){
+  el.style.transition="transform .25s ease,opacity .25s ease";
+  el.style.transform="translateX(340px)";
+  el.style.opacity="0";
+  setTimeout(()=>el.remove(), 260);
+}
+
+function autoSlideToast(el){
+  el.style.transition="transform .4s ease,opacity .4s ease";
+  el.style.transform="translateX(340px)";
+  el.style.opacity="0";
+  setTimeout(()=>el.remove(), 420);
+}
+
+function makeSwipeable(el){
+  let startX=0, startY=0, dx=0, dragging=false;
+  const onStart=e=>{ startX=(e.touches?e.touches[0]:e).clientX; startY=(e.touches?e.touches[0]:e).clientY; dragging=true; el.style.transition="none"; };
+  const onMove=e=>{
+    if(!dragging) return;
+    dx=(e.touches?e.touches[0]:e).clientX - startX;
+    const dy=Math.abs((e.touches?e.touches[0]:e).clientY - startY);
+    if(dy > Math.abs(dx)) return;        // vertical scroll — ignore
+    if(dx > 0) el.style.transform=`translateX(${dx}px)`;
+  };
+  const onEnd=()=>{
+    if(!dragging) return;
+    dragging=false;
+    if(dx > 90){ dismissToast(el); }
+    else{ el.style.transition="transform .2s ease"; el.style.transform=""; }
+    dx=0;
+  };
+  el.addEventListener("mousedown",  onStart);
+  el.addEventListener("touchstart", onStart, {passive:true});
+  el.addEventListener("mousemove",  onMove);
+  el.addEventListener("touchmove",  onMove, {passive:true});
+  el.addEventListener("mouseup",    onEnd);
+  el.addEventListener("touchend",   onEnd);
+  window.addEventListener("mouseup", onEnd);
+}
+
+// ══════════════════════════════════════════════════
+// Tab switching
+// ══════════════════════════════════════════════════
+function goTab(t){
+  ["monitor","simulate","compare","predict"].forEach(id=>
+    document.getElementById("tab-"+id).style.display=id===t?"":"none");
+  document.querySelectorAll(".nav-btn").forEach((b,i)=>
+    b.classList.toggle("on",["monitor","simulate","compare","predict"][i]===t));
+}
+
+// ══════════════════════════════════════════════════
+// MONITOR
+// ══════════════════════════════════════════════════
+function buildUserList(){
+  document.getElementById("u-list").innerHTML=S.users.map(u=>{
+    const c=tc(u.threat_score); const f=FLAG[u.threat_level];
+    const bars=MIDS.map(mid=>{
+      const a=(u.model_accuracy[mid]||0)*100;
+      return `<div style="flex:1" title="${ML[mid]}: ${a.toFixed(0)}%">
+        <div class="bar-t"><div class="bar-f" style="width:${a}%;background:${MC[mid]}"></div></div>
+      </div>`;
+    }).join("");
+    const trend=(u.threat_trend||[0]).map(v=>`
+      <div style="flex:1;background:${tc(v)};border-radius:1px;height:${Math.max(2,Math.round(v/100*12))}px;opacity:.65"></div>`).join("");
+    return `<div onclick="selectUser('${u.user_id}')" id="uc-${u.user_id}"
+      style="padding:9px 11px;border-radius:8px;cursor:pointer;background:var(--card);
+             border:1px solid var(--border);border-left:3px solid ${c};transition:all .13s"
+      onmouseenter="this.style.background='var(--surface)'" onmouseleave="if(S.uid!=='${u.user_id}')this.style.background='var(--card)'">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="width:24px;height:24px;border-radius:5px;background:${c}18;border:1px solid ${c}28;
+          display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:${c}">
+          ${u.user_id.replace("user_","U")}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:9.5px;color:var(--mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">User ${u.user_id}</div>
+          <div style="font-size:7.5px;color:#193550">${u.n_sessions} sessions</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:13px;font-weight:700;color:${c};line-height:1">${u.threat_score}</div>
+          <div style="font-size:7px;color:#193550">threat</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:2px;margin-bottom:4px">${bars}</div>
+      <div style="display:flex;align-items:flex-end;gap:1px;height:12px">${trend}</div>
+    </div>`;
+  }).join("");
+}
+
+async function selectUser(uid){
+  S.uid=uid; S.sidx=null;
+  S.users.forEach(u=>{ const el=document.getElementById("uc-"+u.user_id); if(el) el.style.background=u.user_id===uid?"var(--surface)":"var(--card)"; });
+  if(!S.sessions[uid]){
+    const ss=await fetch(`/api/user/${uid}/sessions`).then(r=>r.json());
+    S.sessions[uid]=ss;
+  }
+  const u=S.users.find(u=>u.user_id===uid);
+  renderUhdr(u);
+  renderSlist(uid);
+  renderSdetail(null);
+}
+
+function renderUhdr(u){
+  const ts=u.threat_score; const c=tc(ts); const f=FLAG[u.threat_level];
+  const R=26, circ=2*Math.PI*R;
+  const dash=ts/100*circ, gap=circ-dash;
+  const dial=`<div class="dial-wrap" style="width:64px;height:64px;flex-shrink:0">
+    <svg class="dial-svg" width="64" height="64" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="${R}" fill="none" stroke="${c}1a" stroke-width="6"/>
+      <circle cx="32" cy="32" r="${R}" fill="none" stroke="${c}" stroke-width="6"
+        stroke-dasharray="${dash.toFixed(1)} ${gap.toFixed(1)}" stroke-linecap="round"/>
+    </svg>
+    <div style="position:absolute;text-align:center">
+      <div style="font-size:14px;font-weight:700;color:${c};line-height:1">${ts}</div>
+      <div style="font-size:7px;color:#193550">/100</div>
+    </div>
+  </div>`;
+  const bio=Object.entries(u.profile||{}).map(([feat,st])=>`
+    <div style="text-align:center">
+      <div style="font-size:7.5px;color:#193550;margin-bottom:1px">${feat.replace("_avg","").toUpperCase()}</div>
+      <div style="font-size:10px;font-weight:600;color:var(--mid)">${st.mean.toFixed(4)}</div>
+      <div style="font-size:7px;color:#193550">±${st.std.toFixed(4)}</div>
+    </div>`).join("");
+  const accs=MIDS.map(mid=>{
+    const a=(u.model_accuracy[mid]||0)*100;
+    return `<div style="margin-bottom:5px;display:flex;align-items:center;gap:7px">
+      <span style="font-size:8px;color:var(--text);min-width:28px">${ML[mid]}</span>
+      <div class="bar-t" style="flex:1"><div class="bar-f" style="width:${a}%;background:${MC[mid]}"></div></div>
+      <span style="font-size:8.5px;color:${MC[mid]};font-weight:700;min-width:32px;text-align:right">${a.toFixed(0)}%</span>
+    </div>`;
+  }).join("");
+  const ir=u.recent_imitation||0;
+  document.getElementById("u-hdr").innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      ${dial}
+      <div>
+        <div style="font-size:15px;font-weight:600;color:var(--bright)">User ${u.user_id}</div>
+        <div style="font-size:8px;color:var(--text);margin-top:1px">${u.n_sessions} sessions · <span style="color:${c};font-weight:700">${f.lbl}</span></div>
+        ${ir>0.4?`<div style="font-size:8px;color:var(--orange);margin-top:2px">⚠ Imitation risk: ${(ir*100).toFixed(0)}%</div>`:""}
+      </div>
+      <div style="display:flex;gap:18px;flex:1">${bio}</div>
+      <div style="min-width:190px">${accs}</div>
+      <div style="padding:8px 14px;border-radius:8px;background:${FLAG[u.threat_level].bg};border:1px solid ${FLAG[u.threat_level].bc};text-align:center;flex-shrink:0;${["critical","warning"].includes(u.threat_level)?"animation:pulse 2s infinite":""}">
+        <div style="font-size:20px;color:${c}">${FLAG[u.threat_level].ico}</div>
+        <div style="font-size:7.5px;color:${c};font-weight:700;letter-spacing:.1em">${FLAG[u.threat_level].lbl}</div>
+      </div>
+    </div>`;
+}
+
+function renderSlist(uid){
+  const ss=S.sessions[uid]||[];
+  document.getElementById("s-list").innerHTML=ss.map((s,i)=>{
+    const f=FLAG[s.flag];
+    const dots=MIDS.map(mid=>`<div style="width:5px;height:5px;border-radius:1.5px;background:${s.models[mid]?.pred===1?MC[mid]:"#ff4f7b"};opacity:.85" title="${ML[mid]}: ${((s.models[mid]?.score||0)*100).toFixed(0)}%"></div>`).join("");
+    return `<div class="srow${S.sidx===i?" on":""}" id="sr-${i}" onclick="pickSess(${i})" style="border-left-color:${f.c}">
+      <span style="font-size:8.5px;color:#193550;min-width:26px">#${s.session_id}</span>
+      <div style="flex:1">
+        <span style="font-size:7.5px;color:${s.label===1?"#00ff9d55":"#ff4f7b55"};background:${s.label===1?"#00ff9d09":"#ff4f7b09"};border-radius:3px;padding:1px 5px;display:inline-block;margin-bottom:3px">${s.label===1?"GENUINE":"IMPOSTOR"}</span>
+        <div style="display:flex;gap:3px">${dots}</div>
+      </div>
+      <span class="badge" style="color:${f.c};background:${f.bg};border-color:${f.bc};font-size:7.5px">${f.ico} ${f.lbl}</span>
+    </div>`;
+  }).join("");
+}
+
+function pickSess(idx){
+  S.sidx=idx;
+  document.querySelectorAll("[id^='sr-']").forEach((el,i)=>el.classList.toggle("on",i===idx));
+  renderSdetail(idx);
+}
+
+function renderSdetail(idx){
+  const el=document.getElementById("s-detail");
+  if(idx===null){
+    const ss=S.sessions[S.uid]||[];
+    const ct={safe:0,caution:0,warning:0,critical:0};
+    ss.forEach(s=>(ct[s.flag]=(ct[s.flag]||0)+1));
+    el.innerHTML=`
+      <div class="card">
+        <div class="ct">FLAG DISTRIBUTION</div>
+        <div style="display:flex;gap:8px">
+          ${Object.entries(ct).map(([lvl,n])=>{const f=FLAG[lvl];return `
+          <div style="flex:1;text-align:center;padding:10px 6px;border-radius:8px;background:${f.bg};border:1px solid ${f.bc}">
+            <div style="font-size:20px;color:${f.c}">${f.ico}</div>
+            <div style="font-size:20px;font-weight:700;color:${f.c}">${n}</div>
+            <div style="font-size:7.5px;color:${f.c};margin-top:2px">${f.lbl}</div>
+          </div>`;}).join("")}
+        </div>
+      </div>
+      <div class="card"><div class="ct">SESSION INSPECTOR</div>
+        <div style="text-align:center;color:var(--dim);padding:30px 0;font-size:11px">← Click any session row to see full breakdown</div>
+      </div>`;
+    return;
+  }
+  const s=S.sessions[S.uid][idx]; const f=FLAG[s.flag]; const c=f.c;
+  const mBars=MIDS.map(mid=>{
+    const m=s.models[mid]||{score:0,pred:0}; const pct=(m.score||0)*100; const ok=m.pred===1;
+    return `<div style="margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px">
+        <span style="color:${ok?MC[mid]:"var(--red)"}">${ML[mid]}</span>
+        <span style="color:${ok?MC[mid]:"var(--red)"};font-weight:700">${pct.toFixed(0)}% ${ok?"PASS":"FAIL"}</span>
+      </div>
+      <div class="bar-t"><div class="bar-f" style="width:${pct}%;background:${ok?MC[mid]:"var(--red)"}"></div></div>
+    </div>`;
+  }).join("");
+  const extRows=[
+    {l:"Dwell Z-score",  v:s.dwell_zscore,   max:4, c:"#00e5ff", hi:s.dwell_zscore>2},
+    {l:"Flight Z-score", v:s.flight_zscore,  max:4, c:"#00ff9d", hi:s.flight_zscore>2},
+    {l:"Traj Z-score",   v:s.traj_zscore,    max:4, c:"#ffd700", hi:s.traj_zscore>2},
+    {l:"Rhythm Index",   v:s.rhythm_index,   max:1, c:"#22d3ee", hi:s.rhythm_index<0.3},
+    {l:"Cross-Z",        v:s.cross_z,        max:5, c:"#c084fc", hi:s.cross_z>2},
+    {l:"Device Offset",  v:s.device_offset,  max:2, c:"#fb923c", hi:s.device_offset>0.5},
+    {l:"Imitation Risk", v:s.imitation_risk, max:1, c:"#ff4f7b", hi:s.imitation_risk>0.6},
+  ].map(({l,v,max,c,hi})=>{
+    const pct=Math.min(100,(v||0)/max*100); const col=hi?"var(--red)":c;
+    return `<div class="feat-row">
+      <div class="feat-label">${l}</div>
+      <div class="feat-bar"><div class="feat-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="feat-val" style="color:${col}">${(v||0).toFixed(3)}${hi?" ⚠":""}</div>
+    </div>`;
+  }).join("");
+  el.innerHTML=`
+    <div class="card fade">
+      <div class="ct" style="display:flex;justify-content:space-between">
+        <span>SESSION #${s.session_id}</span>
+        <span style="color:${c};font-weight:700">${f.ico} ${f.lbl} · ${s.n_fails}/4 FAILED</span>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:12px">
+        <div style="padding:8px 14px;border-radius:8px;background:${f.bg};border:1px solid ${f.bc};text-align:center;flex-shrink:0">
+          <div style="font-size:22px;color:${c}">${f.ico}</div>
+          <div style="font-size:8px;color:${c};font-weight:700">${f.lbl}</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:8.5px;color:var(--text);margin-bottom:8px;line-height:1.8">
+            Label: <span style="color:${s.label===1?"var(--green)":"var(--red)"}">${s.label===1?"GENUINE":"IMPOSTOR"}</span>
+            · Dwell <span style="color:var(--mid)">${s.dwell_avg.toFixed(5)}s</span>
+            · Flight <span style="color:var(--mid)">${s.flight_avg.toFixed(5)}s</span>
+            · Traj <span style="color:var(--mid)">${s.traj_avg.toFixed(1)}px</span>
+          </div>
+          ${mBars}
+        </div>
+      </div>
+    </div>
+    <div class="card fade">
+      <div class="ct">RISK INDICATORS</div>
+      ${extRows}
+      <div style="font-size:8px;color:#193550;margin-top:5px">Rhythm &lt; 0.3 or Imitation &gt; 0.6 → likely non-genuine</div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════
+// SIMULATE — realistic mixed sessions from API
+// ══════════════════════════════════════════════════
+function buildSimUsers(){
+  document.getElementById("sim-users").innerHTML=S.users.map(u=>
+    `<button id="suu-${u.user_id}" onclick="setSimUser('${u.user_id}')"
+      style="padding:4px 10px;border-radius:5px;border:1px solid ${u.user_id===S.simUid?"#00e5ff44":"transparent"};
+      background:${u.user_id===S.simUid?"#00e5ff09":"var(--surface)"};
+      color:${u.user_id===S.simUid?"var(--cyan)":"var(--text)"};
+      cursor:pointer;font-family:inherit;font-size:8.5px;transition:all .12s">
+      ${u.user_id}
+    </button>`).join("");
+}
+function setSimUser(uid){ S.simUid=uid; simReset(); buildSimUsers(); }
+
+function simToggle(){
+  if(S.simTimer){ clearTimeout(S.simTimer); S.simTimer=null; document.getElementById("sim-btn").textContent="▶ RESUME"; }
+  else{ if(S.simStep===0){ S.simLog=[]; renderSimLog(); } document.getElementById("sim-btn").textContent="⏸ PAUSE"; simTick(); }
+}
+function simReset(){
+  if(S.simTimer){ clearTimeout(S.simTimer); S.simTimer=null; }
+  S.simStep=0; S.simLog=[]; S.simSeq=[];
+  document.getElementById("sim-btn").textContent="▶ START";
+  document.getElementById("sim-log").innerHTML=`<div style="text-align:center;color:var(--dim);padding:60px 0;font-size:11px">Press START to begin</div>`;
+  document.getElementById("sim-live").style.display="none";
+  document.getElementById("sim-stats").style.display="none";
+}
+
+async function simTick(){
+  if(!S.simUid) return;
+  // Fetch the realistic sequence on first tick
+  if(S.simSeq.length===0){
+    const seq=await fetch(`/api/user/${S.simUid}/simulate`).then(r=>r.json());
+    if(!Array.isArray(seq)||!seq.length){ document.getElementById("sim-btn").textContent="▶ START"; return; }
+    S.simSeq=seq;
+  }
+  if(S.simStep>=S.simSeq.length){ document.getElementById("sim-btn").textContent="↺ RESTART"; return; }
+  const s=S.simSeq[S.simStep++];
+  S.simLog.push(s);
+  renderSimLive(s);
+  renderSimLog();
+  renderSimStats();
+  if(s.flag==="critical") pushToast({uid:S.simUid,session_id:s.session_id,flag:"critical",n_fails:s.n_fails,threat_score:0,imitation_risk:s.imitation_risk||0,ts:new Date().toISOString()});
+  else if(s.flag==="warning") pushToast({uid:S.simUid,session_id:s.session_id,flag:"warning",n_fails:s.n_fails,threat_score:0,imitation_risk:0,ts:new Date().toISOString()});
+  S.simTimer=setTimeout(simTick, s.label===0 ? 900 : 620);  // slight pause after impostor
+}
+
+function renderSimLive(s){
+  const f=FLAG[s.flag]; const el=document.getElementById("sim-live");
+  el.style.display=""; el.style.borderLeft=`4px solid ${f.c}`;
+  const bars=MIDS.map(mid=>{
+    const m=s.models[mid]||{score:0,pred:0}; const pct=(m.score||0)*100; const ok=m.pred===1;
+    return `<div style="margin-bottom:5px">
+      <div style="display:flex;justify-content:space-between;font-size:8.5px;margin-bottom:2px">
+        <span style="color:${ok?MC[mid]:"var(--red)"}">${ML[mid]}</span>
+        <span style="color:${ok?MC[mid]:"var(--red)"};font-weight:700">${pct.toFixed(0)}%</span>
+      </div>
+      <div class="bar-t" style="height:3px"><div class="bar-f" style="width:${pct}%;background:${ok?MC[mid]:"var(--red)"}"></div></div>
+    </div>`;
+  }).join("");
+  el.innerHTML=`
+    <div class="ct">CURRENT SESSION</div>
+    <div style="font-size:24px;font-weight:700;color:${f.c};line-height:1;margin-bottom:8px" class="fade">${f.ico} ${f.lbl}</div>
+    <div style="font-size:8.5px;color:var(--text);margin-bottom:10px;line-height:2">
+      #${s.session_id} · <span style="color:${s.label===1?"var(--green)":"var(--red)"}">${s.label===1?"GENUINE":"IMPOSTOR"}</span>
+      ${s.imitation_risk>0.5?`· <span style="color:var(--orange)">⚠ IMITATION</span>`:""}
+      · ${s.n_fails}/4 failed
+    </div>
+    ${bars}`;
+}
+
+function renderSimLog(){
+  document.getElementById("sim-log").innerHTML=[...S.simLog].reverse().map(s=>{
+    const f=FLAG[s.flag];
+    const scores=MIDS.map(mid=>{
+      const m=s.models[mid]||{score:0,pred:0};
+      return `<div style="flex:1;text-align:center;font-size:8px;padding:2px 0;border-radius:3px;
+        color:${m.pred===1?MC[mid]:"#ff4f7b"};background:${m.pred===1?MC[mid]+"0a":"#ff4f7b0a"}">
+        ${ML[mid]}<br/><b>${((m.score||0)*100).toFixed(0)}</b></div>`;
+    }).join("");
+    return `<div style="padding:8px 11px;border-radius:7px;background:var(--surface);border-left:3px solid ${f.c};margin-bottom:3px" class="fade">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="font-size:8px;color:#193550;min-width:36px">#${s.session_id}</span>
+        <span style="font-size:7.5px;padding:1px 5px;border-radius:3px;
+          color:${s.label===1?"#00ff9d55":"#ff4f7b55"};background:${s.label===1?"#00ff9d09":"#ff4f7b09"}">
+          ${s.label===1?"GENUINE":"IMPOSTOR"}</span>
+        ${s.imitation_risk>0.5?`<span style="font-size:7.5px;color:var(--orange)">⚠ IMITATION</span>`:""}
+        <span class="badge" style="color:${f.c};background:${f.bg};border-color:${f.bc};font-size:7.5px;margin-left:auto">${f.ico} ${f.lbl}</span>
+      </div>
+      <div style="display:flex;gap:4px">${scores}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderSimStats(){
+  const ct={safe:0,caution:0,warning:0,critical:0};
+  S.simLog.forEach(s=>(ct[s.flag]=(ct[s.flag]||0)+1));
+  const n=S.simLog.length; const impostor=S.simLog.filter(s=>s.label===0).length;
+  const el=document.getElementById("sim-stats"); el.style.display="";
+  el.innerHTML=`<div class="ct">STATS · ${n} SESSIONS</div>
+    <div style="font-size:9px;color:var(--text);margin-bottom:8px;line-height:1.8">
+      Genuine: <span style="color:var(--green)">${n-impostor}</span> · Impostor: <span style="color:var(--red)">${impostor}</span>
+    </div>`+
+    Object.entries(ct).map(([lvl,cnt])=>{const f=FLAG[lvl];return `
+    <div style="margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px">
+        <span style="color:${f.c}">${f.ico} ${f.lbl}</span>
+        <span style="color:${f.c};font-weight:700">${cnt}</span>
+      </div>
+      <div class="bar-t"><div class="bar-f" style="width:${n?cnt/n*100:0}%;background:${f.c}"></div></div>
+    </div>`;}).join("");
+}
+
+// ══════════════════════════════════════════════════
+// COMPARE
+// ══════════════════════════════════════════════════
+function buildCompare(){
+  document.getElementById("cmp-models").innerHTML=S.models.map(m=>`
+    <div style="text-align:center;padding:14px 10px;border-radius:9px;background:${m.color}0a;border:1px solid ${m.color}20">
+      <div style="font-size:8.5px;color:${m.color};letter-spacing:.12em;margin-bottom:5px">${m.short}</div>
+      <div style="font-size:26px;font-weight:700;color:${m.color}">${(m.accuracy*100).toFixed(1)}%</div>
+      <div style="font-size:7.5px;color:#193550;margin-top:3px">${m.label}</div>
+      <div style="display:flex;justify-content:space-between;font-size:7.5px;margin-top:7px">
+        <span style="color:var(--red)">FAR ${(m.far*100).toFixed(1)}%</span>
+        <span style="color:var(--orange)">FRR ${(m.frr*100).toFixed(1)}%</span>
+      </div>
+    </div>`).join("");
+
+  document.getElementById("cmp-head").innerHTML=`<tr>
+    <th>USER</th><th>THREAT</th>
+    ${MIDS.map(mid=>`<th style="color:${MC[mid]}">${ML[mid]}</th>`).join("")}
+    <th>BEST</th><th>STATUS</th>
+  </tr>`;
+
+  document.getElementById("cmp-body").innerHTML=S.users.map(u=>{
+    const f=FLAG[u.threat_level]; const c=tc(u.threat_score);
+    const best=MIDS.reduce((a,b)=>(u.model_accuracy[a]||0)>=(u.model_accuracy[b]||0)?a:b);
+    const cells=MIDS.map(mid=>{
+      const a=(u.model_accuracy[mid]||0)*100;
+      return `<td><div style="display:flex;align-items:center;gap:5px">
+        <span style="color:${MC[mid]};font-weight:700">${a.toFixed(0)}%</span>
+        <div style="width:26px;background:var(--dim);border-radius:2px;height:3px">
+          <div style="width:${a}%;height:100%;background:${MC[mid]};border-radius:2px"></div>
+        </div>
+      </div></td>`;
+    }).join("");
+    return `<tr onclick="selectUser('${u.user_id}');goTab('monitor')" style="cursor:pointer">
+      <td style="color:${c};font-weight:600">
+        <span style="width:5px;height:5px;border-radius:50%;background:${c};display:inline-block;margin-right:6px"></span>
+        ${u.user_id}
+      </td>
+      <td><span style="color:${c};font-weight:700">${u.threat_score}</span></td>
+      ${cells}
+      <td><span class="badge" style="color:${MC[best]};background:${MC[best]}12;border-color:${MC[best]}33">${ML[best]}</span></td>
+      <td><span class="badge" style="color:${f.c};background:${f.bg};border-color:${f.bc}">${f.ico} ${f.lbl}</span></td>
+    </tr>`;
+  }).join("");
+
+  const avgCells=MIDS.map(mid=>{
+    const avg=S.users.reduce((a,u)=>a+(u.model_accuracy[mid]||0),0)/Math.max(1,S.users.length);
+    return `<td style="font-weight:700;color:${MC[mid]}">${(avg*100).toFixed(1)}%</td>`;
+  }).join("");
+  document.getElementById("cmp-foot").innerHTML=`<tr>
+    <td style="font-size:8px;color:#193550">AVG</td>
+    <td></td>${avgCells}<td colspan="2"></td>
+  </tr>`;
+}
+
+// ══════════════════════════════════════════════════
+// PREDICT
+// ══════════════════════════════════════════════════
+function buildPredictUsers(){
+  document.getElementById("p-user").innerHTML=S.users.map(u=>`<option value="${u.user_id}">${u.user_id}</option>`).join("");
+}
+function autoFill(e){
+  e.preventDefault();
+  const u=S.users.find(u=>u.user_id===document.getElementById("p-user").value); if(!u) return;
+  document.getElementById("p-dwell").value  = u.profile?.dwell_avg?.mean?.toFixed(6)||"";
+  document.getElementById("p-flight").value = u.profile?.flight_avg?.mean?.toFixed(6)||"";
+  document.getElementById("p-traj").value   = u.profile?.traj_avg?.mean?.toFixed(2)||"";
+}
+function autoFillImpostor(e){
+  e.preventDefault();
+  const uid=document.getElementById("p-user").value;
+  const others=S.users.filter(u=>u.user_id!==uid);
+  const src=others.length?others[Math.floor(Math.random()*others.length)]:S.users[0];
+  if(!src) return;
+  document.getElementById("p-dwell").value  = src.profile?.dwell_avg?.mean?.toFixed(6)||"";
+  document.getElementById("p-flight").value = src.profile?.flight_avg?.mean?.toFixed(6)||"";
+  document.getElementById("p-traj").value   = src.profile?.traj_avg?.mean?.toFixed(2)||"";
+}
+
+async function doPredict(){
+  const uid=document.getElementById("p-user").value;
+  const dwell=parseFloat(document.getElementById("p-dwell").value);
+  const flight=parseFloat(document.getElementById("p-flight").value);
+  const traj=parseFloat(document.getElementById("p-traj").value);
+  if([dwell,flight,traj].some(isNaN)){
+    document.getElementById("p-results").innerHTML=`<div class="ct">ERROR</div><div style="color:var(--red);padding:14px;font-size:10px">⚠ Fill in all three values.</div>`;
+    return;
+  }
+  document.getElementById("p-results").innerHTML=`<div class="ct">RUNNING…</div><div style="display:flex;justify-content:center;padding:50px"><div class="spinner"></div></div>`;
+  try{
+    const res=await fetch("/api/predict",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({user_id:uid,dwell_avg:dwell,flight_avg:flight,traj_avg:traj})}).then(r=>r.json());
+    if(res.error){ document.getElementById("p-results").innerHTML=`<div class="ct">ERROR</div><div style="color:var(--red)">${res.error}</div>`; return; }
+    const f=FLAG[res.flag]; const score_c=tc(res.threat_score);
+    const bars=MIDS.map(mid=>{
+      const m=res.models[mid]||{score:0,pred:0}; const pct=(m.score||0)*100; const ok=m.pred===1;
+      return `<div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px">
+          <span style="color:${ok?MC[mid]:"var(--red)"}">${ML[mid]}</span>
+          <span style="color:${ok?MC[mid]:"var(--red)"};font-weight:700">${pct.toFixed(0)}% ${ok?"PASS":"FAIL"}</span>
+        </div>
+        <div class="bar-t"><div class="bar-f" style="width:${pct}%;background:${ok?MC[mid]:"var(--red)"}"></div></div>
+      </div>`;
+    }).join("");
+    document.getElementById("p-results").innerHTML=`
+      <div class="ct" style="display:flex;justify-content:space-between">
+        <span>RESULT — ${uid}</span>
+        <span style="color:${f.c};font-weight:700">${f.ico} ${f.lbl}</span>
+      </div>
+      <div style="display:flex;gap:14px;margin-bottom:16px">
+        <div style="padding:10px 14px;border-radius:8px;background:${f.bg};border:1px solid ${f.bc};text-align:center;flex-shrink:0">
+          <div style="font-size:26px;color:${f.c};font-weight:700">${f.ico}</div>
+          <div style="font-size:8px;color:${f.c};font-weight:700">${f.lbl}</div>
+        </div>
+        <div style="flex:1">
+          <div style="margin-bottom:8px;font-size:8.5px;color:var(--text)">
+            ${res.n_fails}/4 failed · Dwell ${dwell.toFixed(5)}s · Flight ${flight.toFixed(5)}s · Traj ${traj.toFixed(0)}px
+          </div>
+          ${bars}
+        </div>
+      </div>`;
+    const ext=res.extended||{};
+    document.getElementById("p-ext").style.display="";
+    document.getElementById("p-ext").innerHTML=`<div class="ct">RISK INDICATORS</div>`+
+      [{l:"Dwell Z-score",v:ext.dwell_zscore,max:4,c:"#00e5ff",hi:ext.dwell_zscore>2},
+       {l:"Flight Z-score",v:ext.flight_zscore,max:4,c:"#00ff9d",hi:ext.flight_zscore>2},
+       {l:"Traj Z-score",v:ext.traj_zscore,max:4,c:"#ffd700",hi:ext.traj_zscore>2},
+       {l:"Rhythm Index",v:ext.rhythm_index,max:1,c:"#22d3ee",hi:ext.rhythm_index<0.3},
+       {l:"Cross-Z",v:ext.cross_z,max:5,c:"#c084fc",hi:ext.cross_z>2},
+       {l:"Device Offset",v:ext.device_offset,max:2,c:"#fb923c",hi:ext.device_offset>0.5},
+       {l:"Imitation Risk",v:ext.imitation_risk,max:1,c:"#ff4f7b",hi:ext.imitation_risk>0.6},
+      ].map(({l,v,max,c,hi})=>{
+        const pct=Math.min(100,(v||0)/max*100); const col=hi?"var(--red)":c;
+        return `<div class="feat-row">
+          <div class="feat-label">${l}</div>
+          <div class="feat-bar"><div class="feat-fill" style="width:${pct}%;background:${col}"></div></div>
+          <div class="feat-val" style="color:${col}">${(v||0).toFixed(3)}${hi?" ⚠":""}</div>
+        </div>`;
+      }).join("");
+    if(res.flag==="critical") pushToast({uid,session_id:-1,flag:"critical",n_fails:res.n_fails,threat_score:res.threat_score,imitation_risk:ext.imitation_risk||0,ts:new Date().toISOString()});
+  }catch(e){
+    document.getElementById("p-results").innerHTML=`<div class="ct">ERROR</div><div style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════
+// ADD USER MODAL
+// ══════════════════════════════════════════════════
+let sampleCount=0;
+function openModal(){
+  sampleCount=0;
+  document.getElementById("m-uid").value="";
+  document.getElementById("m-samples").innerHTML="";
+  document.getElementById("m-error").textContent="";
+  addSampleRow();  // start with 1 row
+  document.getElementById("user-modal").style.display="flex";
+}
+function closeModal(){ document.getElementById("user-modal").style.display="none"; }
+
+function addSampleRow(){
+  sampleCount++;
+  const n=sampleCount;
+  const div=document.createElement("div");
+  div.className="session-sample";
+  div.id=`sample-${n}`;
+  div.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:8px;color:#193550">SAMPLE SESSION ${n}</div>
+      ${n>1?`<button onclick="document.getElementById('sample-${n}').remove()" style="font-size:10px;color:var(--dim);background:transparent;border:none;cursor:pointer">✕</button>`:""}
+    </div>
+    <div class="g3">
+      <div class="fld" style="margin-bottom:0"><label>DWELL (s)</label><input type="number" id="s${n}-dwell" step="0.0001" placeholder="0.090"/></div>
+      <div class="fld" style="margin-bottom:0"><label>FLIGHT (s)</label><input type="number" id="s${n}-flight" step="0.0001" placeholder="0.340"/></div>
+      <div class="fld" style="margin-bottom:0"><label>TRAJ (px)</label><input type="number" id="s${n}-traj" step="1" placeholder="520"/></div>
+    </div>`;
+  document.getElementById("m-samples").appendChild(div);
+}
+
+async function submitNewUser(){
+  const uid=document.getElementById("m-uid").value.trim();
+  document.getElementById("m-error").textContent="";
+  if(!uid){ document.getElementById("m-error").textContent="User ID is required."; return; }
+
+  const samples=[];
+  for(let i=1;i<=sampleCount;i++){
+    const d=parseFloat(document.getElementById(`s${i}-dwell`)?.value);
+    const f2=parseFloat(document.getElementById(`s${i}-flight`)?.value);
+    const t=parseFloat(document.getElementById(`s${i}-traj`)?.value);
+    if(![d,f2,t].some(isNaN)) samples.push({dwell_avg:d,flight_avg:f2,traj_avg:t});
+  }
+  if(!samples.length){ document.getElementById("m-error").textContent="Enter at least 1 complete session sample."; return; }
+
+  try{
+    const res=await fetch("/api/users",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({user_id:uid,sessions:samples})}).then(r=>r.json());
+    if(res.error){ document.getElementById("m-error").textContent=res.error; return; }
+    closeModal();
+    // Reload users list
+    const users=await fetch("/api/users").then(r=>r.json());
+    S.users=users;
+    refreshHeader();
+    buildUserList();
+    buildSimUsers();
+    buildCompare();
+    buildPredictUsers();
+    await selectUser(uid);
+    goTab("monitor");
+  }catch(e){
+    document.getElementById("m-error").textContent=e.message;
+  }
+}
+
+// ══════════════════════════════════════════════════
+// Util
+// ══════════════════════════════════════════════════
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// ══════════════════════════════════════════════════
+// Boot
+// ══════════════════════════════════════════════════
+boot();
+</script>
+</body>
+</html>
